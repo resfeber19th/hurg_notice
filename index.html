@@ -74,7 +74,7 @@
 
         <!-- カテゴリ切り替えタブ -->
         <div id="categoryTabs" class="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
-            <!-- JavaScriptで動的生成 -->
+            <!-- JavaScriptで動적生成 -->
         </div>
 
         <!-- 共有事項一覧（Discord Embed風カード表示） -->
@@ -96,19 +96,16 @@
                 <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold px-2">&times;</button>
             </div>
 
-            <!-- モーダル本文 (画像イメージに基づく統合Embedブロック) -->
+            <!-- モーダル本文 (Embed統合ブロック) -->
             <div class="p-6 overflow-y-auto flex-1 space-y-6">
-                <!-- 親カード（Embed風の大きな枠線ブロック） -->
+                <!-- 親カード -->
                 <div id="modalEmbedBlock" class="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col gap-4">
-                    <!-- Discord Embed風 左アクセントカラーバー -->
                     <div id="modalAccentBar" class="absolute left-0 top-0 bottom-0 w-2.5"></div>
 
-                    <!-- 親のコメント本文エリア -->
                     <div class="pl-2">
                         <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">コメント本文</h4>
                         <p id="modalDetail" class="text-slate-800 whitespace-pre-wrap text-sm leading-relaxed bg-slate-50/70 p-4 rounded-xl border border-slate-100"></p>
                         
-                        <!-- 補足・備考 -->
                         <div id="modalNoteContainer" class="hidden mt-3 bg-amber-50 text-amber-800 text-xs p-3 rounded-xl border border-amber-200">
                             <strong>補足・備考:</strong> <span id="modalNote"></span>
                         </div>
@@ -121,9 +118,8 @@
                             <span id="commentCount" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px]">0</span>
                         </h5>
 
-                        <!-- 枝分かれスレッド一覧エリア -->
                         <div id="commentList" class="relative pl-6 space-y-3">
-                            <!-- JSでツリー線付きスレッドブロックを挿入 -->
+                            <!-- JSでツリー状スレッドを挿入 -->
                         </div>
                     </div>
                 </div>
@@ -134,3 +130,153 @@
                     <input type="text" id="commentAuthor" placeholder="お名前" required class="w-full text-xs px-3 py-2 bg-white text-slate-800 border border-slate-200 focus:border-blue-500 rounded-xl focus:outline-none">
                     <div class="flex gap-2">
                         <input type="text" id="commentText" placeholder="返信メッセージを入力..." required class="flex-1 text-xs px-3 py-2 bg-white text-slate-800 border border-slate-200 focus:border-blue-500 rounded-xl focus:outline-none">
+                        <button type="submit" id="commentSubmitBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-xl font-medium transition whitespace-nowrap">送信</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzSxqlj6ewGzifvqcHJZkAIma3lB7m0teHf688spGe2B7v8fFn7HDYSiKw0JZv8mMYr-g/exec";
+
+        let appState = {
+            notices: [],
+            comments: [],
+            currentCategory: "すべて",
+            activeNoticeId: null,
+            password: ""
+        };
+
+        // ページ読み込み時：フラグだけを見て即座にメイン画面を開き、安全にデータを1回だけ取得する（ループ完全防止）
+        window.addEventListener('DOMContentLoaded', () => {
+            const isAuth = localStorage.getItem('rg_is_authenticated');
+            const savedPass = localStorage.getItem('rg_pass_cache');
+            
+            if (isAuth === 'true' && savedPass) {
+                appState.password = savedPass;
+                showMainScreen();
+                loadBoardDataSilently(savedPass);
+            }
+        });
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const inputVal = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('authError');
+            const btn = document.getElementById('authBtn');
+
+            btn.disabled = true;
+            btn.textContent = '確認中...';
+            errorEl.classList.add('hidden');
+
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: 'auth', password: inputVal })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    appState.password = inputVal;
+                    appState.notices = res.data.notices || [];
+                    appState.comments = res.data.comments || [];
+
+                    localStorage.setItem('rg_is_authenticated', 'true');
+                    localStorage.setItem('rg_pass_cache', inputVal);
+
+                    showMainScreen();
+                    renderApp();
+                } else {
+                    errorEl.textContent = 'パスワードが間違っています';
+                    errorEl.classList.remove('hidden');
+                    document.getElementById('passwordInput').value = '';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                errorEl.textContent = '通信エラーが発生しました';
+                errorEl.classList.remove('hidden');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '入室する';
+            });
+        }
+
+        function loadBoardDataSilently(password) {
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: 'auth', password: password })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    appState.notices = res.data.notices || [];
+                    appState.comments = res.data.comments || [];
+                    renderApp();
+                } else {
+                    document.getElementById('noticeGrid').innerHTML = `<p class="text-center text-rose-500 py-12">データの取得に失敗しました。一度「ロック」して再度ログインしてください。</p>`;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('noticeGrid').innerHTML = `<p class="text-center text-rose-500 py-12">ネットワーク接続を確認してください。</p>`;
+            });
+        }
+
+        function showMainScreen() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.body.classList.remove('flex', 'justify-center', 'items-center');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('rg_is_authenticated');
+            localStorage.removeItem('rg_pass_cache');
+            window.location.reload();
+        }
+
+        function getCategoryColor(category) {
+            if (!category) return '#3b82f6';
+            const cat = category.trim().toLowerCase();
+            if (cat.includes('通常')) return '#10b981';
+            if (cat.includes('住み替えエントリー')) return '#f59e0b';
+            if (cat.includes('合格前予約')) return '#ef4444';
+            if (cat.includes('受験時')) return '#8b5cf6';
+            return '#3b82f6';
+        }
+
+        function refreshData() {
+            if (!appState.password) return;
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: 'auth', password: appState.password })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    appState.notices = res.data.notices || [];
+                    appState.comments = res.data.comments || [];
+                    renderApp();
+                    if (appState.activeNoticeId !== null) {
+                        renderComments(appState.activeNoticeId);
+                    }
+                }
+            });
+        }
+
+        function renderApp() {
+            renderCategoryTabs();
+            renderGrid();
+        }
+
+        function renderCategoryTabs() {
+            const categories = ["すべて", ...new Set(appState.notices.map(n => n.category).filter(Boolean))];
+            const container = document.getElementById('categoryTabs');
+            
+            container.innerHTML = categories.map(cat => `
+                <button onclick="selectCategory('${escapeHtml(cat)}')" 
+                        class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${appState.currentCategory === cat ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border
