@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>共有事項ボード</title>
+    <title>北大生協ルームガイド　共有事項</title>
     <!-- Google Fonts: Noto Sans JP -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,7 +39,7 @@
                 <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <span class="text-blue-600">#</span> 共有事項ボード
                 </h1>
-                <p class="text-xs text-slate-500 mt-1">北大生協RG カテゴリ別情報共有</p>
+                <p class="text-xs text-slate-500 mt-1"></p>
             </div>
             <!-- 新規投稿ボタン（Googleフォームへ遷移） -->
             <a href="https://docs.google.com/forms/d/e/1FAIpQLSdws5l84JJlbujW1dVDxuACpUF7g2CjC3LtNEmOgAwUyO7JcA/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium shadow-sm transition inline-flex items-center gap-1.5">
@@ -116,10 +116,10 @@
         function getCategoryColor(category) {
             if (!category) return '#3b82f6';
             const cat = category.trim().toLowerCase();
-            if (cat.includes('シフト') || cat.includes('勤務')) return '#10b981';      // 緑
-            if (cat.includes('イベント') || cat.includes('行事')) return '#f59e0b';  // 黄
-            if (cat.includes('連絡') || cat.includes('重要')) return '#ef4444';      // 赤
-            if (cat.includes('業務') || cat.includes('マニュアル')) return '#8b5cf6'; // 紫
+            if (cat.includes('通常') return '#10b981';      // 緑
+            if (cat.includes('住み替えエントリー') return '#f59e0b';  // 黄
+            if (cat.includes('合格前予約') return '#ef4444';      // 赤
+            if (cat.includes('受験時') return '#8b5cf6'; // 紫
             return '#3b82f6'; // デフォルト青
         }
 
