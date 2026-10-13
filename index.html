@@ -23,7 +23,7 @@
         <div class="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-xl">
             <h2 class="text-lg font-bold text-slate-900 mb-2 text-center">アクセス認証</h2>
             <p class="text-xs text-slate-500 mb-4 text-center">閲覧するにはパスワードを入力してください</p>
-            <form onsubmit="checkPassword(event)" class="space-y-3">
+            <form onsubmit="handleLogin(event)" class="space-y-3">
                 <input type="password" id="passwordInput" placeholder="パスワードを入力" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none">
                 <p id="authError" class="text-xs text-rose-500 hidden text-center">パスワードが間違っています</p>
                 <button type="submit" id="authBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">入室する</button>
@@ -50,7 +50,7 @@
                     </svg>
                 </a>
                 <!-- ログアウト（ロック）ボタン -->
-                <button onclick="logout()" class="text-xs text-slate-400 hover:text-rose-600 transition px-2 py-1">ロック</button>
+                <button onclick="handleLogout()" class="text-xs text-slate-400 hover:text-rose-600 transition px-2 py-1">ロック</button>
             </div>
         </header>
 
@@ -62,10 +62,10 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </span>
-                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="キーワードで検索（タイトル、内容、担当者など）..." class="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none shadow-xs">
+                <input type="text" id="searchInput" oninput="renderApp()" placeholder="キーワードで検索（タイトル、内容、担当者など）..." class="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none shadow-xs">
             </div>
             <div class="sm:w-48">
-                <select id="sortSelect" onchange="handleSort()" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none shadow-xs cursor-pointer">
+                <select id="sortSelect" onchange="renderApp()" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none shadow-xs cursor-pointer">
                     <option value="desc">日付：新しい順 (降順)</option>
                     <option value="asc">日付：古い順 (昇順)</option>
                 </select>
@@ -128,41 +128,32 @@
     <script>
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzSxqlj6ewGzifvqcHJZkAIma3lB7m0teHf688spGe2B7v8fFn7HDYSiKw0JZv8mMYr-g/exec";
 
-        let noticesData = [];
-        let commentsData = [];
-        let currentCategory = "すべて";
-        let activeNoticeId = null;
-        let activePassword = "";
+        // アプリケーションの状態管理
+        let appState = {
+            notices: [],
+            comments: [],
+            currentCategory: "すべて",
+            activeNoticeId: null,
+            password: ""
+        };
 
+        // ページ読み込み時の処理
         window.addEventListener('DOMContentLoaded', () => {
-            const isAuth = localStorage.getItem('rg_is_authenticated');
-            const pass = localStorage.getItem('rg_pass_cache');
-            
-            if (isAuth === 'true' && pass) {
-                activePassword = pass;
-                fetchData(pass, (success) => {
+            const savedPass = localStorage.getItem('rg_pass_cache');
+            if (savedPass) {
+                appState.password = savedPass;
+                loadBoardData(savedPass, (success) => {
                     if (success) {
-                        document.getElementById('authScreen').classList.add('hidden');
-                        document.getElementById('mainContent').classList.remove('hidden');
-                        document.body.classList.remove('flex', 'justify-center', 'items-center');
+                        showMainScreen();
                     } else {
-                        logout();
+                        handleLogout(); // 認証失敗時は綺麗にクリア
                     }
                 });
             }
         });
 
-        function getCategoryColor(category) {
-            if (!category) return '#3b82f6';
-            const cat = category.trim().toLowerCase();
-            if (cat.includes('通常')) return '#10b981';
-            if (cat.includes('住み替えエントリー')) return '#f59e0b';
-            if (cat.includes('合格前予約')) return '#ef4444';
-            if (cat.includes('受験時')) return '#8b5cf6';
-            return '#3b82f6';
-        }
-
-        function checkPassword(e) {
+        // 認証フォーム送信時
+        function handleLogin(e) {
             e.preventDefault();
             const inputVal = document.getElementById('passwordInput').value;
             const errorEl = document.getElementById('authError');
@@ -172,15 +163,11 @@
             btn.textContent = '確認中...';
             errorEl.classList.add('hidden');
 
-            fetchData(inputVal, (success) => {
+            loadBoardData(inputVal, (success) => {
                 if (success) {
-                    localStorage.setItem('rg_is_authenticated', 'true');
+                    appState.password = inputVal;
                     localStorage.setItem('rg_pass_cache', inputVal);
-                    activePassword = inputVal;
-
-                    document.getElementById('authScreen').classList.add('hidden');
-                    document.getElementById('mainContent').classList.remove('hidden');
-                    document.body.classList.remove('flex', 'justify-center', 'items-center');
+                    showMainScreen();
                 } else {
                     errorEl.textContent = 'パスワードが間違っています';
                     errorEl.classList.remove('hidden');
@@ -191,7 +178,8 @@
             });
         }
 
-        function fetchData(password, callback) {
+        // サーバーからデータを一括取得する共通関数
+        function loadBoardData(password, callback) {
             fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -200,97 +188,102 @@
             .then(res => res.json())
             .then(res => {
                 if (res.status === 'success') {
-                    noticesData = res.data.notices || [];
-                    commentsData = res.data.comments || [];
-                    renderCategoryTabs();
-                    renderGrid();
+                    appState.notices = res.data.notices || [];
+                    appState.comments = res.data.comments || [];
+                    renderApp();
                     if (typeof callback === 'function') callback(true);
                 } else {
                     if (typeof callback === 'function') callback(false);
                 }
             })
             .catch(err => {
-                console.error(err);
+                console.error("通信エラー:", err);
                 if (typeof callback === 'function') callback(false);
             });
         }
 
-        function reloadData() {
-            if (!activePassword) {
-                activePassword = localStorage.getItem('rg_pass_cache') || "";
-            }
-            if (!activePassword) return;
-
-            fetchData(activePassword, (success) => {
-                if (success && activeNoticeId !== null) {
-                    renderComments(activeNoticeId);
-                }
-            });
+        // メイン画面の表示切り替え
+        function showMainScreen() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.body.classList.remove('flex', 'justify-center', 'items-center');
         }
 
-        function logout() {
-            localStorage.removeItem('rg_is_authenticated');
+        // ログアウト（ロック）処理
+        function handleLogout() {
             localStorage.removeItem('rg_pass_cache');
             window.location.reload();
         }
 
+        // カテゴリカラーの定義
+        function getCategoryColor(category) {
+            if (!category) return '#3b82f6';
+            const cat = category.trim().toLowerCase();
+            if (cat.includes('通常')) return '#10b981';
+            if (cat.includes('住み替えエントリー')) return '#f59e0b';
+            if (cat.includes('合格前予約')) return '#ef4444';
+            if (cat.includes('受験時')) return '#8b5cf6';
+            return '#3b82f6';
+        }
+
+        // データの再読み込み（データ更新用）
+        function refreshData() {
+            if (!appState.password) return;
+            loadBoardData(appState.password, () => {
+                if (appState.activeNoticeId !== null) {
+                    renderComments(appState.activeNoticeId);
+                }
+            });
+        }
+
+        // アプリ全体の描画を統括する関数
+        function renderApp() {
+            renderCategoryTabs();
+            renderGrid();
+        }
+
+        // カテゴリタブの描画
         function renderCategoryTabs() {
-            const categories = ["すべて", ...new Set(noticesData.map(n => n.category).filter(Boolean))];
+            const categories = ["すべて", ...new Set(appState.notices.map(n => n.category).filter(Boolean))];
             const container = document.getElementById('categoryTabs');
             
             container.innerHTML = categories.map(cat => `
                 <button onclick="selectCategory('${escapeHtml(cat)}')" 
-                        class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${currentCategory === cat ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}">
+                        class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${appState.currentCategory === cat ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}">
                     ${escapeHtml(cat)}
                 </button>
             `).join('');
         }
 
         function selectCategory(cat) {
-            currentCategory = cat;
-            renderCategoryTabs();
-            renderGrid();
+            appState.currentCategory = cat;
+            renderApp();
         }
 
-        function handleSearch() {
-            renderGrid();
-        }
-
-        function handleSort() {
-            renderGrid();
-        }
-
+        // 検索・ソート・カテゴリを適用したグリッド描画
         function renderGrid() {
             const grid = document.getElementById('noticeGrid');
             const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
             const sortOrder = document.getElementById('sortSelect').value;
 
-            // 1. カテゴリで絞り込み
-            let filtered = currentCategory === "すべて" 
-                ? [...noticesData] 
-                : noticesData.filter(n => n.category === currentCategory);
+            // 1. カテゴリ絞り込み
+            let filtered = appState.currentCategory === "すべて" 
+                ? [...appState.notices] 
+                : appState.notices.filter(n => n.category === appState.currentCategory);
 
-            // 2. キーワード検索で絞り込み
+            // 2. キーワード検索
             if (keyword) {
                 filtered = filtered.filter(n => {
-                    const title = (n.title || "").toLowerCase();
-                    const detail = (n.detail || "").toLowerCase();
-                    const author = (n.author || "").toLowerCase();
-                    const category = (n.category || "").toLowerCase();
-                    const note = (n.note || "").toLowerCase();
-                    return title.includes(keyword) || detail.includes(keyword) || author.includes(keyword) || category.includes(keyword) || note.includes(keyword);
+                    const targetStr = `${n.title || ""} ${n.detail || ""} ${n.author || ""} ${n.category || ""} ${n.note || ""}`.toLowerCase();
+                    return targetStr.includes(keyword);
                 });
             }
 
-            // 3. 日付でソート（昇順 / 降順）
+            // 3. ソート（新しい順 / 古い順）
             filtered.sort((a, b) => {
                 const dateA = new Date(a.date || a.timestamp || 0);
                 const dateB = new Date(b.date || b.timestamp || 0);
-                if (sortOrder === 'asc') {
-                    return dateA - dateB; // 古い順
-                } else {
-                    return dateB - dateA; // 新しい順
-                }
+                return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
             });
 
             if (filtered.length === 0) {
@@ -299,7 +292,7 @@
             }
 
             grid.innerHTML = filtered.map(n => {
-                const noticeComments = commentsData.filter(c => c.targetId === n.id);
+                const noticeComments = appState.comments.filter(c => c.targetId === n.id);
                 const accentColor = getCategoryColor(n.category);
                 return `
                     <div onclick="openDetailModal('${n.id}')" class="bg-white border border-slate-200/80 rounded-xl p-4 hover:border-slate-300 hover:shadow-md transition cursor-pointer flex gap-3 relative overflow-hidden shadow-xs">
@@ -323,11 +316,12 @@
             }).join('');
         }
 
+        // モーダル操作
         function openDetailModal(id) {
-            const notice = noticesData.find(n => n.id === id);
+            const notice = appState.notices.find(n => n.id === id);
             if (!notice) return;
 
-            activeNoticeId = id;
+            appState.activeNoticeId = id;
             const accentColor = getCategoryColor(notice.category);
             
             const modalCategoryEl = document.getElementById('modalCategory');
@@ -354,12 +348,12 @@
 
         function closeDetailModal() {
             document.getElementById('detailModal').classList.add('hidden');
-            activeNoticeId = null;
+            appState.activeNoticeId = null;
         }
 
         function renderComments(noticeId) {
             const list = document.getElementById('commentList');
-            const targetComments = commentsData.filter(c => c.targetId === noticeId);
+            const targetComments = appState.comments.filter(c => c.targetId === noticeId);
             document.getElementById('commentCount').textContent = targetComments.length;
 
             if (targetComments.length === 0) {
@@ -378,16 +372,17 @@
             `).join('');
         }
 
+        // コメント送信
         function submitComment(e) {
             e.preventDefault();
-            if (!activeNoticeId) return;
+            if (!appState.activeNoticeId) return;
 
             const btn = document.getElementById('commentSubmitBtn');
             btn.disabled = true;
 
             const payload = {
                 type: 'comment',
-                targetId: activeNoticeId,
+                targetId: appState.activeNoticeId,
                 author: document.getElementById('commentAuthor').value,
                 comment: document.getElementById('commentText').value
             };
@@ -401,7 +396,7 @@
             .then(res => {
                 if (res.status === 'success') {
                     document.getElementById('commentText').value = '';
-                    reloadData();
+                    refreshData();
                 } else {
                     alert('エラーが発生しました');
                 }
@@ -409,9 +404,16 @@
             .finally(() => btn.disabled = false);
         }
 
+        // XSS対策のサニタイズ
         function escapeHtml(str) {
             if (!str) return '';
             return String(str)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
-                .replace(/>/g,
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
