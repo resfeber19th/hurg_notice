@@ -41,13 +41,17 @@
                 </h1>
                 <p class="text-xs text-slate-500 mt-1"></p>
             </div>
-            <!-- 新規投稿ボタン（Googleフォームへ遷移） -->
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSdws5l84JJlbujW1dVDxuACpUF7g2CjC3LtNEmOgAwUyO7JcA/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium shadow-sm transition inline-flex items-center gap-1.5">
-                <span>+ 新規投稿</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-            </a>
+            <div class="flex items-center gap-3">
+                <!-- 新規投稿ボタン（Googleフォームへ遷移） -->
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSdws5l84JJlbujW1dVDxuACpUF7g2CjC3LtNEmOgAwUyO7JcA/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium shadow-sm transition inline-flex items-center gap-1.5">
+                    <span>+ 新規投稿</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                </a>
+                <!-- ログアウト（再ロック）ボタン -->
+                <button onclick="logout()" class="text-xs text-slate-400 hover:text-rose-600 transition px-2 py-1">ロック</button>
+            </div>
         </header>
 
         <!-- カテゴリ切り替えタブ -->
@@ -110,15 +114,21 @@
         let commentsData = [];
         let currentCategory = "すべて";
         let activeNoticeId = null;
-        let currentPassword = ""; // メモリ上にパスワードを保持
+        let cachedPassword = "";
 
-        // ページ読み込み時にログイン状態をチェック
+        // ページ読み込み時：すでにログイン済み（フラグがある）なら、パスワード再送信なしで即メイン画面を開いてデータを1回だけ取得する
         window.addEventListener('DOMContentLoaded', () => {
+            const isAuth = localStorage.getItem('rg_is_authenticated');
             const savedPass = localStorage.getItem('rg_saved_password');
-            if (savedPass) {
-                currentPassword = savedPass;
-                showMainContent(); // 即座にメイン画面を表示
-                reloadData();      // 裏でデータを取得
+            
+            if (isAuth === 'true' && savedPass) {
+                cachedPassword = savedPass;
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+                document.body.classList.remove('flex', 'justify-center', 'items-center');
+                
+                // 一発だけデータを取得
+                fetchDataOnce(cachedPassword);
             }
         });
 
@@ -150,14 +160,20 @@
             .then(res => res.json())
             .then(res => {
                 if (res.status === 'success') {
-                    // 成功したらパスワードを保存してメイン画面へ
+                    // 認証成功フラグとパスワードを保存
+                    localStorage.setItem('rg_is_authenticated', 'true');
                     localStorage.setItem('rg_saved_password', inputVal);
-                    currentPassword = inputVal;
+                    cachedPassword = inputVal;
 
                     noticesData = res.data.notices || [];
                     commentsData = res.data.comments || [];
 
-                    showMainContent();
+                    document.getElementById('authScreen').classList.add('hidden');
+                    document.getElementById('mainContent').classList.remove('hidden');
+                    document.body.classList.remove('flex', 'justify-center', 'items-center');
+
+                    renderCategoryTabs();
+                    renderGrid();
                 } else {
                     errorEl.textContent = 'パスワードが間違っています';
                     errorEl.classList.remove('hidden');
@@ -175,25 +191,42 @@
             });
         }
 
-        function showMainContent() {
-            document.getElementById('authScreen').classList.add('hidden');
-            document.getElementById('mainContent').classList.remove('hidden');
-            document.body.classList.remove('flex', 'justify-center', 'items-center');
-
-            renderCategoryTabs();
-            renderGrid();
+        // ループしない単発のデータ取得関数
+        function fetchDataOnce(password) {
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: 'auth', password: password })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    noticesData = res.data.notices || [];
+                    commentsData = res.data.comments || [];
+                    renderCategoryTabs();
+                    renderGrid();
+                } else {
+                    // 万が一パスワード違い等になった場合は認証情報をクリアしてロック画面に戻す
+                    logout();
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                // ネットエラー時は画面を表示したままにする（ループさせない）
+                document.getElementById('noticeGrid'].innerHTML = `<p class="text-center text-rose-500 py-12">データの読み込みに失敗しました。ネットワークを確認してください。</p>`;
+            });
         }
 
         function reloadData() {
-            if (!currentPassword) {
-                currentPassword = localStorage.getItem('rg_saved_password') || "";
+            if (!cachedPassword) {
+                cachedPassword = localStorage.getItem('rg_saved_password') || "";
             }
-            if (!currentPassword) return;
+            if (!cachedPassword) return;
 
             fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ type: 'auth', password: currentPassword })
+                body: JSON.stringify({ type: 'auth', password: cachedPassword })
             })
             .then(res => res.json())
             .then(res => {
@@ -205,12 +238,15 @@
                     if (activeNoticeId !== null) {
                         renderComments(activeNoticeId);
                     }
-                } else {
-                    // パスワードが変更された等で認証エラーになった場合のみ入力を促す
-                    localStorage.removeItem('rg_saved_password');
                 }
             })
             .catch(err => console.error(err));
+        }
+
+        function logout() {
+            localStorage.removeItem('rg_is_authenticated');
+            localStorage.removeItem('rg_saved_password');
+            window.location.reload();
         }
 
         function renderCategoryTabs() {
@@ -251,117 +287,3 @@
                         
                         <div class="flex-1 pl-2">
                             <div class="flex justify-between items-center mb-1.5">
-                                <span class="text-[10px] font-bold px-2 py-0.5 rounded" style="background-color: ${accentColor}15; color: ${accentColor};">${escapeHtml(n.category)}</span>
-                                <span class="text-[10px] text-slate-400">${escapeHtml(n.date ? String(n.date).split('T')[0] : '')}</span>
-                            </div>
-                            <h3 class="font-bold text-slate-900 text-sm mb-1 line-clamp-1">${escapeHtml(n.title)}</h3>
-                            <p class="text-slate-600 text-xs line-clamp-2 leading-relaxed mb-3">${escapeHtml(n.detail)}</p>
-                            
-                            <div class="flex justify-between items-center text-[11px] text-slate-400 pt-2 border-t border-slate-100">
-                                <span>担当: <strong class="text-slate-700">${escapeHtml(n.author)}</strong></span>
-                                <span class="flex items-center gap-1 font-medium" style="color: ${accentColor};">💬 コメント (${noticeComments.length})</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function openDetailModal(id) {
-            const notice = noticesData.find(n => n.id === id);
-            if (!notice) return;
-
-            activeNoticeId = id;
-            const accentColor = getCategoryColor(notice.category);
-            
-            const modalCategoryEl = document.getElementById('modalCategory');
-            modalCategoryEl.textContent = notice.category;
-            modalCategoryEl.style.backgroundColor = accentColor + '15';
-            modalCategoryEl.style.color = accentColor;
-
-            document.getElementById('modalTitle').textContent = notice.title;
-            document.getElementById('modalDate').textContent = notice.date ? String(notice.date).split('T')[0] : '';
-            document.getElementById('modalAuthor').textContent = notice.author;
-            document.getElementById('modalDetail').textContent = notice.detail;
-
-            const noteContainer = document.getElementById('modalNoteContainer');
-            if (notice.note) {
-                document.getElementById('modalNote').textContent = notice.note;
-                noteContainer.classList.remove('hidden');
-            } else {
-                noteContainer.classList.add('hidden');
-            }
-
-            renderComments(id);
-            document.getElementById('detailModal').classList.remove('hidden');
-        }
-
-        function closeDetailModal() {
-            document.getElementById('detailModal').classList.add('hidden');
-            activeNoticeId = null;
-        }
-
-        function renderComments(noticeId) {
-            const list = document.getElementById('commentList');
-            const targetComments = commentsData.filter(c => c.targetId === noticeId);
-            document.getElementById('commentCount').textContent = targetComments.length;
-
-            if (targetComments.length === 0) {
-                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">コメントはまだありません。</p>`;
-                return;
-            }
-
-            list.innerHTML = targetComments.map(c => `
-                <div class="bg-slate-50 p-3 rounded-xl text-xs space-y-1 border border-slate-200">
-                    <div class="flex justify-between items-center font-semibold text-slate-800">
-                        <span>${escapeHtml(c.author)}</span>
-                        <span class="text-[10px] text-slate-400">${escapeHtml(c.timestamp ? new Date(c.timestamp).toLocaleString('ja-JP') : '')}</span>
-                    </div>
-                    <p class="text-slate-600 whitespace-pre-wrap">${escapeHtml(c.comment)}</p>
-                </div>
-            `).join('');
-        }
-
-        function submitComment(e) {
-            e.preventDefault();
-            if (!activeNoticeId) return;
-
-            const btn = document.getElementById('commentSubmitBtn');
-            btn.disabled = true;
-
-            const payload = {
-                type: 'comment',
-                targetId: activeNoticeId,
-                author: document.getElementById('commentAuthor').value,
-                comment: document.getElementById('commentText').value
-            };
-
-            fetch(GAS_WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(res => {
-                if (res.status === 'success') {
-                    document.getElementById('commentText').value = '';
-                    reloadData();
-                } else {
-                    alert('エラーが発生しました');
-                }
-            })
-            .finally(() => btn.disabled = false);
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-    </script>
-</body>
-</html>
