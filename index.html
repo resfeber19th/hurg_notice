@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>共有事項ボード</title>
+    <title>北大生協ルームガイド　共有事項掲示板</title>
     <!-- Google Fonts: Noto Sans JP -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,7 +26,7 @@
             <form onsubmit="checkPassword(event)" class="space-y-3">
                 <input type="password" id="passwordInput" placeholder="パスワードを入力" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <p id="authError" class="text-xs text-red-500 hidden text-center">パスワードが間違っています</p>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">入室する</button>
+                <button type="submit" id="authBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">入室する</button>
             </form>
         </div>
     </div>
@@ -103,8 +103,7 @@
 
     <script>
         // ★ デプロイしたGASのウェブアプリURLを設定してください
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbwPbt8F4xfs0iPPCFx5RmK3Izl_sBTS5H5EI3at2bTG4o5Lt6bdI3dfxVTUf4ALwspQ/exec";
-        const CORRECT_PASSWORD = "clark7589550";
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzSxqlj6ewGzifvqcHJZkAIma3lB7m0teHf688spGe2B7v8fFn7HDYSiKw0JZv8mMYr-g/exec";
 
         let noticesData = [];
         let commentsData = [];
@@ -115,39 +114,71 @@
             e.preventDefault();
             const inputVal = document.getElementById('passwordInput').value;
             const errorEl = document.getElementById('authError');
+            const btn = document.getElementById('authBtn');
 
-            if (inputVal === CORRECT_PASSWORD) {
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('mainContent').classList.remove('hidden');
-                document.body.classList.remove('flex', 'justify-center', 'items-center');
-                loadData();
-            } else {
+            btn.disabled = true;
+            btn.textContent = '確認中...';
+            errorEl.classList.add('hidden');
+
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'auth',
+                    password: inputVal
+                })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    noticesData = res.data.notices || [];
+                    commentsData = res.data.comments || [];
+
+                    document.getElementById('authScreen').classList.add('hidden');
+                    document.getElementById('mainContent').classList.remove('hidden');
+                    document.body.classList.remove('flex', 'justify-center', 'items-center');
+
+                    renderCategoryTabs();
+                    renderGrid();
+                } else {
+                    errorEl.textContent = 'パスワードが間違っています';
+                    errorEl.classList.remove('hidden');
+                    document.getElementById('passwordInput').value = '';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                errorEl.textContent = '通信エラーが発生しました';
                 errorEl.classList.remove('hidden');
-                document.getElementById('passwordInput').value = '';
-            }
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '入室する';
+            });
         }
 
-        function loadData() {
-            if (GAS_WEB_APP_URL.includes("YOUR_GAS_WEB_APP_URL")) {
-                document.getElementById('noticeGrid').innerHTML = `<p class="col-span-full text-center text-red-500 py-12">GASのウェブアプリURLが設定されていません。</p>`;
-                return;
-            }
+        function reloadData() {
+            const inputVal = document.getElementById('passwordInput').value;
+            if (!inputVal) return;
 
-            fetch(GAS_WEB_APP_URL)
-                .then(res => res.json())
-                .then(data => {
-                    noticesData = data.notices || [];
-                    commentsData = data.comments || [];
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'auth',
+                    password: inputVal
+                })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    noticesData = res.data.notices || [];
+                    commentsData = res.data.comments || [];
                     renderCategoryTabs();
                     renderGrid();
                     if (activeNoticeId !== null) {
                         renderComments(activeNoticeId);
                     }
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('noticeGrid').innerHTML = `<p class="col-span-full text-center text-red-500 py-12">データの読み込みに失敗しました。</p>`;
-                });
+                }
+            });
         }
 
         function renderCategoryTabs() {
@@ -271,7 +302,7 @@
             .then(res => {
                 if (res.status === 'success') {
                     document.getElementById('commentText').value = '';
-                    loadData();
+                    reloadData();
                 } else {
                     alert('エラーが発生しました');
                 }
