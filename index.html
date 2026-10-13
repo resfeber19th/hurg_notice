@@ -148,7 +148,6 @@
             password: ""
         };
 
-        // ページ読み込み時：パスワード自動送信は一切行わず、フラグがあれば一度だけデータを取得する
         window.addEventListener('DOMContentLoaded', () => {
             const isAuth = localStorage.getItem('rg_is_authenticated');
             const savedPass = localStorage.getItem('rg_pass_cache');
@@ -156,8 +155,7 @@
             if (isAuth === 'true' && savedPass) {
                 appState.password = savedPass;
                 showMainScreen();
-                // データの取得を安全に1回だけ実行
-                fetchBoardData(savedPass, false);
+                loadBoardDataSilently(savedPass);
             }
         });
 
@@ -171,24 +169,41 @@
             btn.textContent = '確認中...';
             errorEl.classList.add('hidden');
 
-            fetchBoardData(inputVal, true, (success) => {
-                if (success) {
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: 'auth', password: inputVal })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
                     appState.password = inputVal;
+                    appState.notices = res.data.notices || [];
+                    appState.comments = res.data.comments || [];
+
                     localStorage.setItem('rg_is_authenticated', 'true');
                     localStorage.setItem('rg_pass_cache', inputVal);
+
                     showMainScreen();
+                    renderApp();
                 } else {
                     errorEl.textContent = 'パスワードが間違っています';
                     errorEl.classList.remove('hidden');
                     document.getElementById('passwordInput').value = '';
                 }
+            })
+            .catch(err => {
+                console.error(err);
+                errorEl.textContent = '通信エラーが発生しました';
+                errorEl.classList.remove('hidden');
+            })
+            .finally(() => {
                 btn.disabled = false;
                 btn.textContent = '入室する';
             });
         }
 
-        // 共通のデータ取得関数（isLoginActionがtrueの場合は認証チェックを兼ねる）
-        function fetchBoardData(password, isLoginAction, callback) {
+        function loadBoardDataSilently(password) {
             fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -200,23 +215,13 @@
                     appState.notices = res.data.notices || [];
                     appState.comments = res.data.comments || [];
                     renderApp();
-                    if (typeof callback === 'function') callback(true);
                 } else {
-                    if (isLoginAction) {
-                        if (typeof callback === 'function') callback(false);
-                    } else {
-                        // 自動ログイン時にパスワードが無効になっていた場合のみ、安全にロック状態に戻す（リロードはしない）
-                        handleLogout();
-                    }
+                    document.getElementById('noticeGrid').innerHTML = `<p class="text-center text-rose-500 py-12">データの取得に失敗しました。一度「ロック」して再度ログインしてください。</p>`;
                 }
             })
             .catch(err => {
-                console.error("通信エラー:", err);
-                if (isLoginAction && typeof callback === 'function') {
-                    callback(false);
-                } else {
-                    document.getElementById('noticeGrid').innerHTML = `<p class="text-center text-rose-500 py-12">データの取得に失敗しました。ネットワークを確認してください。</p>`;
-                }
+                console.error(err);
+                document.getElementById('noticeGrid').innerHTML = `<p class="text-center text-rose-500 py-12">ネットワーク接続を確認してください。</p>`;
             });
         }
 
@@ -232,21 +237,33 @@
             window.location.reload();
         }
 
+        // ご指定のカラーコードを反映
         function getCategoryColor(category) {
-            if (!category) return '#3b82f6';
+            if (!category) return '#4dc4ff';
             const cat = category.trim().toLowerCase();
-            if (cat.includes('通常')) return '#10b981';
-            if (cat.includes('住み替えエントリー')) return '#f59e0b';
-            if (cat.includes('合格前予約')) return '#ef4444';
-            if (cat.includes('受験時')) return '#8b5cf6';
-            return '#3b82f6';
+            if (cat.includes('通常')) return '#03af7a';      // 緑
+            if (cat.includes('住み替えエントリー')) return '#f6aa00'; // オレンジ
+            if (cat.includes('合格前予約')) return '#ff4b00';     // 赤
+            if (cat.includes('受験時')) return '#990099';         // 紫
+            return '#4dc4ff';                                    // デフォルト青
         }
 
         function refreshData() {
             if (!appState.password) return;
-            fetchBoardData(appState.password, false, () => {
-                if (appState.activeNoticeId !== null) {
-                    renderComments(appState.activeNoticeId);
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: 'auth', password: appState.password })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    appState.notices = res.data.notices || [];
+                    appState.comments = res.data.comments || [];
+                    renderApp();
+                    if (appState.activeNoticeId !== null) {
+                        renderComments(appState.activeNoticeId);
+                    }
                 }
             });
         }
