@@ -34,7 +34,7 @@
     <!-- メインコンテンツ（認証後に表示） -->
     <div id="mainContent" class="max-w-5xl w-full mx-auto px-4 py-8 hidden min-h-screen flex flex-col">
         <!-- ヘッダー -->
-        <header class="mb-8 flex justify-between items-center border-b border-slate-200 pb-4">
+        <header class="mb-6 flex justify-between items-center border-b border-slate-200 pb-4">
             <div>
                 <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <span class="text-blue-600">#</span> 共有事項ボード
@@ -53,6 +53,24 @@
                 <button onclick="logout()" class="text-xs text-slate-400 hover:text-rose-600 transition px-2 py-1">ロック</button>
             </div>
         </header>
+
+        <!-- 検索バー ＆ ソート切替エリア -->
+        <div class="flex flex-col sm:flex-row gap-3 mb-6">
+            <div class="relative flex-1">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </span>
+                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="キーワードで検索（タイトル、内容、担当者など）..." class="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none shadow-xs">
+            </div>
+            <div class="sm:w-48">
+                <select id="sortSelect" onchange="handleSort()" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none shadow-xs cursor-pointer">
+                    <option value="desc">日付：新しい順 (降順)</option>
+                    <option value="asc">日付：古い順 (昇順)</option>
+                </select>
+            </div>
+        </div>
 
         <!-- カテゴリ切り替えタブ -->
         <div id="categoryTabs" class="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
@@ -116,21 +134,18 @@
         let activeNoticeId = null;
         let activePassword = "";
 
-        // ページ読み込み時：キャッシュがあれば、まず「検証付きで」バックグラウンド確認する
         window.addEventListener('DOMContentLoaded', () => {
             const isAuth = localStorage.getItem('rg_is_authenticated');
             const pass = localStorage.getItem('rg_pass_cache');
             
             if (isAuth === 'true' && pass) {
                 activePassword = pass;
-                // サーバー検証が成功してからメイン画面に切り替える（先走り表示を防ぐ）
                 fetchData(pass, (success) => {
                     if (success) {
                         document.getElementById('authScreen').classList.add('hidden');
                         document.getElementById('mainContent').classList.remove('hidden');
                         document.body.classList.remove('flex', 'justify-center', 'items-center');
                     } else {
-                        // パスワード変更などで失敗した場合は安全にキャッシュをクリア
                         logout();
                     }
                 });
@@ -237,11 +252,46 @@
             renderGrid();
         }
 
+        function handleSearch() {
+            renderGrid();
+        }
+
+        function handleSort() {
+            renderGrid();
+        }
+
         function renderGrid() {
             const grid = document.getElementById('noticeGrid');
-            const filtered = currentCategory === "すべて" 
-                ? noticesData 
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            const sortOrder = document.getElementById('sortSelect').value;
+
+            // 1. カテゴリで絞り込み
+            let filtered = currentCategory === "すべて" 
+                ? [...noticesData] 
                 : noticesData.filter(n => n.category === currentCategory);
+
+            // 2. キーワード検索で絞り込み
+            if (keyword) {
+                filtered = filtered.filter(n => {
+                    const title = (n.title || "").toLowerCase();
+                    const detail = (n.detail || "").toLowerCase();
+                    const author = (n.author || "").toLowerCase();
+                    const category = (n.category || "").toLowerCase();
+                    const note = (n.note || "").toLowerCase();
+                    return title.includes(keyword) || detail.includes(keyword) || author.includes(keyword) || category.includes(keyword) || note.includes(keyword);
+                });
+            }
+
+            // 3. 日付でソート（昇順 / 降順）
+            filtered.sort((a, b) => {
+                const dateA = new Date(a.date || a.timestamp || 0);
+                const dateB = new Date(b.date || b.timestamp || 0);
+                if (sortOrder === 'asc') {
+                    return dateA - dateB; // 古い順
+                } else {
+                    return dateB - dateA; // 新しい順
+                }
+            });
 
             if (filtered.length === 0) {
                 grid.innerHTML = `<p class="text-center text-slate-400 py-12">該当する共有事項はありません。</p>`;
@@ -364,10 +414,4 @@
             return String(str)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-    </script>
-</body>
-</html>
+                .replace(/>/g,
