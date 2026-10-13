@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>共有事項ボード</title>
+    <!-- Google Fonts: Noto Sans JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col justify-center items-center">
+
+    <!-- パスワード認証画面 -->
+    <div id="authScreen" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+            <h2 class="text-lg font-bold text-slate-900 mb-2 text-center">アクセス認証</h2>
+            <p class="text-xs text-slate-500 mb-4 text-center">閲覧するにはパスワードを入力してください</p>
+            <form onsubmit="checkPassword(event)" class="space-y-3">
+                <input type="password" id="passwordInput" placeholder="パスワードを入力" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p id="authError" class="text-xs text-red-500 hidden text-center">パスワードが間違っています</p>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">入室する</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ（認証後に表示） -->
+    <div id="mainContent" class="max-w-5xl w-full mx-auto px-4 py-8 hidden min-h-screen flex flex-col">
+        <!-- ヘッダー -->
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">共有事項ボード</h1>
+                <p class="text-sm text-slate-500">北大生協RG カテゴリ別情報共有</p>
+            </div>
+            <!-- 新規投稿ボタン（Googleフォームへ遷移） -->
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSdws5l84JJlbujW1dVDxuACpUF7g2CjC3LtNEmOgAwUyO7JcA/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition inline-flex items-center gap-1.5">
+                <span>+ 新規投稿</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+            </a>
+        </header>
+
+        <!-- カテゴリ切り替えタブ -->
+        <div id="categoryTabs" class="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
+            <!-- JavaScriptで動的生成 -->
+        </div>
+
+        <!-- 共有事項一覧（カード表示） -->
+        <div id="noticeGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <p class="col-span-full text-center text-slate-400 py-12">データを読み込んでいます...</p>
+        </div>
+    </div>
+
+    <!-- 詳細＆コメントモーダル -->
+    <div id="detailModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- モーダルヘッダー -->
+            <div class="p-6 border-b border-slate-100 flex justify-between items-start">
+                <div>
+                    <span id="modalCategory" class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-md font-semibold"></span>
+                    <h2 id="modalTitle" class="text-xl font-bold text-slate-900 mt-2"></h2>
+                    <p class="text-xs text-slate-400 mt-1"><span id="modalDate"></span> | 担当: <span id="modalAuthor"></span></p>
+                </div>
+                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold px-2">&times;</button>
+            </div>
+            <!-- モーダル本文 -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">詳細内容</h4>
+                    <p id="modalDetail" class="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed"></p>
+                </div>
+                <div id="modalNoteContainer" class="hidden bg-amber-50 text-amber-800 text-xs p-3 rounded-xl border border-amber-200">
+                    <strong>補足・備考:</strong> <span id="modalNote"></span>
+                </div>
+
+                <!-- コメントセクション -->
+                <div class="border-t border-slate-100 pt-6">
+                    <h4 class="text-sm font-bold text-slate-800 mb-4">コメント一覧 (<span id="commentCount">0</span>)</h4>
+                    <div id="commentList" class="space-y-3 mb-4">
+                        <!-- コメント挿入領域 -->
+                    </div>
+
+                    <!-- コメント入力フォーム -->
+                    <form onsubmit="submitComment(event)" class="space-y-2 bg-slate-50 p-3 rounded-xl">
+                        <input type="text" id="commentAuthor" placeholder="お名前" required class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        <div class="flex gap-2">
+                            <input type="text" id="commentText" placeholder="コメントを入力..." required class="flex-1 text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            <button type="submit" id="commentSubmitBtn" class="bg-blue-600 text-white text-xs px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">送信</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ★ デプロイしたGASのウェブアプリURLを設定してください
+        const GAS_WEB_APP_URL = "YOUR_GAS_WEB_APP_URL_HERE";
+        const CORRECT_PASSWORD = "clark7589550";
+
+        let noticesData = [];
+        let commentsData = [];
+        let currentCategory = "すべて";
+        let activeNoticeId = null;
+
+        function checkPassword(e) {
+            e.preventDefault();
+            const inputVal = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('authError');
+
+            if (inputVal === CORRECT_PASSWORD) {
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+                document.body.classList.remove('flex', 'justify-center', 'items-center');
+                loadData();
+            } else {
+                errorEl.classList.remove('hidden');
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+
+        function loadData() {
+            if (GAS_WEB_APP_URL.includes("YOUR_GAS_WEB_APP_URL")) {
+                document.getElementById('noticeGrid').innerHTML = `<p class="col-span-full text-center text-red-500 py-12">GASのウェブアプリURLが設定されていません。</p>`;
+                return;
+            }
+
+            fetch(GAS_WEB_APP_URL)
+                .then(res => res.json())
+                .then(data => {
+                    noticesData = data.notices || [];
+                    commentsData = data.comments || [];
+                    renderCategoryTabs();
+                    renderGrid();
+                    if (activeNoticeId !== null) {
+                        renderComments(activeNoticeId);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('noticeGrid').innerHTML = `<p class="col-span-full text-center text-red-500 py-12">データの読み込みに失敗しました。</p>`;
+                });
+        }
+
+        function renderCategoryTabs() {
+            const categories = ["すべて", ...new Set(noticesData.map(n => n.category).filter(Boolean))];
+            const container = document.getElementById('categoryTabs');
+            
+            container.innerHTML = categories.map(cat => `
+                <button onclick="selectCategory('${escapeHtml(cat)}')" 
+                        class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${currentCategory === cat ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}">
+                    ${escapeHtml(cat)}
+                </button>
+            `).join('');
+        }
+
+        function selectCategory(cat) {
+            currentCategory = cat;
+            renderCategoryTabs();
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('noticeGrid');
+            const filtered = currentCategory === "すべて" 
+                ? noticesData 
+                : noticesData.filter(n => n.category === currentCategory);
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center text-slate-400 py-12">該当する共有事項はありません。</p>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(n => {
+                const noticeComments = commentsData.filter(c => c.targetId === n.id);
+                return `
+                    <div onclick="openDetailModal('${n.id}')" class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-md font-semibold">${escapeHtml(n.category)}</span>
+                                <span class="text-xs text-slate-400">${escapeHtml(n.date ? String(n.date).split('T')[0] : '')}</span>
+                            </div>
+                            <h3 class="font-bold text-slate-900 text-base mb-2 line-clamp-1">${escapeHtml(n.title)}</h3>
+                            <p class="text-slate-600 text-xs line-clamp-2 leading-relaxed mb-4">${escapeHtml(n.detail)}</p>
+                        </div>
+                        <div class="flex justify-between items-center pt-3 border-t border-slate-100 text-xs text-slate-400">
+                            <span>担当: ${escapeHtml(n.author)}</span>
+                            <span class="flex items-center gap-1 text-slate-500">💬 ${noticeComments.length}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openDetailModal(id) {
+            const notice = noticesData.find(n => n.id === id);
+            if (!notice) return;
+
+            activeNoticeId = id;
+            document.getElementById('modalCategory').textContent = notice.category;
+            document.getElementById('modalTitle').textContent = notice.title;
+            document.getElementById('modalDate').textContent = notice.date ? String(notice.date).split('T')[0] : '';
+            document.getElementById('modalAuthor').textContent = notice.author;
+            document.getElementById('modalDetail').textContent = notice.detail;
+
+            const noteContainer = document.getElementById('modalNoteContainer');
+            if (notice.note) {
+                document.getElementById('modalNote').textContent = notice.note;
+                noteContainer.classList.remove('hidden');
+            } else {
+                noteContainer.classList.add('hidden');
+            }
+
+            renderComments(id);
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+            activeNoticeId = null;
+        }
+
+        function renderComments(noticeId) {
+            const list = document.getElementById('commentList');
+            const targetComments = commentsData.filter(c => c.targetId === noticeId);
+            document.getElementById('commentCount').textContent = targetComments.length;
+
+            if (targetComments.length === 0) {
+                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">コメントはまだありません。</p>`;
+                return;
+            }
+
+            list.innerHTML = targetComments.map(c => `
+                <div class="bg-slate-50 p-3 rounded-xl text-xs space-y-1">
+                    <div class="flex justify-between items-center font-semibold text-slate-700">
+                        <span>${escapeHtml(c.author)}</span>
+                        <span class="text-[10px] text-slate-400">${escapeHtml(c.timestamp ? new Date(c.timestamp).toLocaleString('ja-JP') : '')}</span>
+                    </div>
+                    <p class="text-slate-600 whitespace-pre-wrap">${escapeHtml(c.comment)}</p>
+                </div>
+            `).join('');
+        }
+
+        function submitComment(e) {
+            e.preventDefault();
+            if (!activeNoticeId) return;
+
+            const btn = document.getElementById('commentSubmitBtn');
+            btn.disabled = true;
+
+            const payload = {
+                type: 'comment',
+                targetId: activeNoticeId,
+                author: document.getElementById('commentAuthor').value,
+                comment: document.getElementById('commentText').value
+            };
+
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    document.getElementById('commentText').value = '';
+                    loadData();
+                } else {
+                    alert('エラーが発生しました');
+                }
+            })
+            .finally(() => btn.disabled = false);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
