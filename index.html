@@ -25,13 +25,6 @@
             <p class="text-xs text-slate-500 mb-4 text-center">閲覧するにはパスワードを入力してください</p>
             <form onsubmit="checkPassword(event)" class="space-y-3">
                 <input type="password" id="passwordInput" placeholder="パスワードを入力" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none">
-                
-                <!-- 次回から入力を省略するチェックボックス -->
-                <div class="flex items-center gap-2 pt-1">
-                    <input type="checkbox" id="rememberMe" class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer">
-                    <label for="rememberMe" class="text-xs text-slate-600 cursor-pointer select-none">次回からパスワード入力を省略する</label>
-                </div>
-
                 <p id="authError" class="text-xs text-rose-500 hidden text-center">パスワードが間違っています</p>
                 <button type="submit" id="authBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">入室する</button>
             </form>
@@ -118,9 +111,9 @@
         let currentCategory = "すべて";
         let activeNoticeId = null;
 
-        // ページ読み込み時にlocalStorageまたはsessionStorageをチェック
+        // ページ読み込み時にlocalStorageをチェック（次回以降も入力を省略）
         window.addEventListener('DOMContentLoaded', () => {
-            const savedPass = localStorage.getItem('savedPassword') || sessionStorage.getItem('savedPassword');
+            const savedPass = localStorage.getItem('rg_saved_password');
             if (savedPass) {
                 fetchInitialDataSilently(savedPass);
             }
@@ -130,4 +123,31 @@
             if (!category) return '#3b82f6';
             const cat = category.trim().toLowerCase();
             if (cat.includes('通常')) return '#10b981';
-            if (cat.includes('住み替えエントリー
+            if (cat.includes('住み替えエントリー')) return '#f59e0b';
+            if (cat.includes('合格前予約')) return '#ef4444';
+            if (cat.includes('受験時')) return '#8b5cf6';
+            return '#3b82f6';
+        }
+
+        function checkPassword(e) {
+            e.preventDefault();
+            const inputVal = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('authError');
+            const btn = document.getElementById('authBtn');
+
+            btn.disabled = true;
+            btn.textContent = '確認中...';
+            errorEl.classList.add('hidden');
+
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: 'auth', password: inputVal })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    // 成功したらlocalStorageにパスワードを保存し、次回から自動でログイン
+                    localStorage.setItem('rg_saved_password', inputVal);
+
+                    notices
