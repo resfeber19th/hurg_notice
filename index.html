@@ -105,10 +105,15 @@
                     <strong>補足・備考:</strong> <span id="modalNote"></span>
                 </div>
 
-                <!-- コメントセクション -->
+                <!-- Threads風スレッドコメントセクション -->
                 <div class="border-t border-slate-100 pt-6">
-                    <h4 class="text-xs font-bold text-slate-800 mb-3">スレッドコメント (<span id="commentCount">0</span>)</h4>
-                    <div id="commentList" class="space-y-3 mb-4">
+                    <h4 class="text-xs font-bold text-slate-800 mb-4 flex items-center gap-1.5">
+                        <span>スレッドコメント</span>
+                        <span id="commentCount" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </h4>
+                    
+                    <!-- スレッドツリー表示領域 -->
+                    <div id="commentList" class="space-y-4 mb-6 relative">
                         <!-- コメント挿入領域 -->
                     </div>
 
@@ -116,8 +121,8 @@
                     <form onsubmit="submitComment(event)" class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                         <input type="text" id="commentAuthor" placeholder="お名前" required class="w-full text-xs px-3 py-2 bg-white text-slate-800 border border-slate-200 focus:border-blue-500 rounded-lg focus:outline-none">
                         <div class="flex gap-2">
-                            <input type="text" id="commentText" placeholder="メッセージを送信..." required class="flex-1 text-xs px-3 py-2 bg-white text-slate-800 border border-slate-200 focus:border-blue-500 rounded-lg focus:outline-none">
-                            <button type="submit" id="commentSubmitBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-medium transition">送信</button>
+                            <input type="text" id="commentText" placeholder="返信を入力..." required class="flex-1 text-xs px-3 py-2 bg-white text-slate-800 border border-slate-200 focus:border-blue-500 rounded-lg focus:outline-none">
+                            <button type="submit" id="commentSubmitBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-medium transition">返信する</button>
                         </div>
                     </form>
                 </div>
@@ -128,7 +133,6 @@
     <script>
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzSxqlj6ewGzifvqcHJZkAIma3lB7m0teHf688spGe2B7v8fFn7HDYSiKw0JZv8mMYr-g/exec";
 
-        // アプリケーションの状態管理
         let appState = {
             notices: [],
             comments: [],
@@ -137,7 +141,6 @@
             password: ""
         };
 
-        // ページ読み込み時の処理
         window.addEventListener('DOMContentLoaded', () => {
             const savedPass = localStorage.getItem('rg_pass_cache');
             if (savedPass) {
@@ -146,13 +149,12 @@
                     if (success) {
                         showMainScreen();
                     } else {
-                        handleLogout(); // 認証失敗時は綺麗にクリア
+                        handleLogout();
                     }
                 });
             }
         });
 
-        // 認証フォーム送信時
         function handleLogin(e) {
             e.preventDefault();
             const inputVal = document.getElementById('passwordInput').value;
@@ -178,7 +180,6 @@
             });
         }
 
-        // サーバーからデータを一括取得する共通関数
         function loadBoardData(password, callback) {
             fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
@@ -202,20 +203,17 @@
             });
         }
 
-        // メイン画面の表示切り替え
         function showMainScreen() {
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('mainContent').classList.remove('hidden');
             document.body.classList.remove('flex', 'justify-center', 'items-center');
         }
 
-        // ログアウト（ロック）処理
         function handleLogout() {
             localStorage.removeItem('rg_pass_cache');
             window.location.reload();
         }
 
-        // カテゴリカラーの定義
         function getCategoryColor(category) {
             if (!category) return '#3b82f6';
             const cat = category.trim().toLowerCase();
@@ -226,7 +224,6 @@
             return '#3b82f6';
         }
 
-        // データの再読み込み（データ更新用）
         function refreshData() {
             if (!appState.password) return;
             loadBoardData(appState.password, () => {
@@ -236,13 +233,11 @@
             });
         }
 
-        // アプリ全体の描画を統括する関数
         function renderApp() {
             renderCategoryTabs();
             renderGrid();
         }
 
-        // カテゴリタブの描画
         function renderCategoryTabs() {
             const categories = ["すべて", ...new Set(appState.notices.map(n => n.category).filter(Boolean))];
             const container = document.getElementById('categoryTabs');
@@ -260,18 +255,15 @@
             renderApp();
         }
 
-        // 検索・ソート・カテゴリを適用したグリッド描画
         function renderGrid() {
             const grid = document.getElementById('noticeGrid');
             const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
             const sortOrder = document.getElementById('sortSelect').value;
 
-            // 1. カテゴリ絞り込み
             let filtered = appState.currentCategory === "すべて" 
                 ? [...appState.notices] 
                 : appState.notices.filter(n => n.category === appState.currentCategory);
 
-            // 2. キーワード検索
             if (keyword) {
                 filtered = filtered.filter(n => {
                     const targetStr = `${n.title || ""} ${n.detail || ""} ${n.author || ""} ${n.category || ""} ${n.note || ""}`.toLowerCase();
@@ -279,7 +271,6 @@
                 });
             }
 
-            // 3. ソート（新しい順 / 古い順）
             filtered.sort((a, b) => {
                 const dateA = new Date(a.date || a.timestamp || 0);
                 const dateB = new Date(b.date || b.timestamp || 0);
@@ -316,7 +307,6 @@
             }).join('');
         }
 
-        // モーダル操作
         function openDetailModal(id) {
             const notice = appState.notices.find(n => n.id === id);
             if (!notice) return;
@@ -351,34 +341,49 @@
             appState.activeNoticeId = null;
         }
 
+        // Threads風ツリー構造コメントの描画
         function renderComments(noticeId) {
             const list = document.getElementById('commentList');
             const targetComments = appState.comments.filter(c => c.targetId === noticeId);
             document.getElementById('commentCount').textContent = targetComments.length;
 
             if (targetComments.length === 0) {
-                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">コメントはまだありません。</p>`;
+                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">コメントはまだありません。最初の返信を投稿してみましょう！</p>`;
                 return;
             }
 
-            list.innerHTML = targetComments.map(c => `
-                <div class="bg-slate-50 p-3 rounded-xl text-xs space-y-1 border border-slate-200">
-                    <div class="flex justify-between items-center font-semibold text-slate-800">
-                        <span>${escapeHtml(c.author)}</span>
-                        <span class="text-[10px] text-slate-400">${escapeHtml(c.timestamp ? new Date(c.timestamp).toLocaleString('ja-JP') : '')}</span>
+            // Threads風レイアウト（左側に枝分かれ用の縦ラインとインデントを配置）
+            list.innerHTML = targetComments.map((c, index) => {
+                const isLast = index === targetComments.length - 1;
+                return `
+                    <div class="relative pl-6 pb-2">
+                        <!-- Threads風の縦ツリーライン -->
+                        ${!isLast ? '<div class="absolute left-2.5 top-3 bottom-0 w-0.5 bg-slate-200"></div>' : ''}
+                        <!-- 枝分かれを表す横の結合ライン -->
+                        <div class="absolute left-2.5 top-3 w-3 h-0.5 bg-slate-200"></div>
+                        <!-- 丸いノードドット -->
+                        <div class="absolute left-1.5 top-2.5 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-white"></div>
+
+                        <!-- コメントカード本体 -->
+                        <div class="bg-slate-50/80 hover:bg-slate-50 transition p-3.5 rounded-xl border border-slate-200/80 text-xs space-y-1.5 shadow-2xs">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-slate-800">${escapeHtml(c.author)}</span>
+                                <span class="text-[10px] text-slate-400">${escapeHtml(c.timestamp ? new Date(c.timestamp).toLocaleString('ja-JP') : '')}</span>
+                            </div>
+                            <p class="text-slate-600 whitespace-pre-wrap leading-relaxed">${escapeHtml(c.comment)}</p>
+                        </div>
                     </div>
-                    <p class="text-slate-600 whitespace-pre-wrap">${escapeHtml(c.comment)}</p>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
-        // コメント送信
         function submitComment(e) {
             e.preventDefault();
             if (!appState.activeNoticeId) return;
 
             const btn = document.getElementById('commentSubmitBtn');
             btn.disabled = true;
+            btn.textContent = '送信中...';
 
             const payload = {
                 type: 'comment',
@@ -401,10 +406,12 @@
                     alert('エラーが発生しました');
                 }
             })
-            .finally(() => btn.disabled = false);
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '返信する';
+            });
         }
 
-        // XSS対策のサニタイズ
         function escapeHtml(str) {
             if (!str) return '';
             return String(str)
