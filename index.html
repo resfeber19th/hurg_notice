@@ -16,17 +16,17 @@
         }
     </style>
 </head>
-<body class="bg-[#313338] text-[#dbdee1] min-h-screen flex flex-col justify-center items-center">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-center items-center">
 
-    <!-- パスワード認証画面 -->
-    <div id="authScreen" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#2b2d31] border border-[#1e1f22] rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-            <h2 class="text-lg font-bold text-white mb-2 text-center">アクセス認証</h2>
-            <p class="text-xs text-[#949ba4] mb-4 text-center">閲覧するにはパスワードを入力してください</p>
+    <!-- パスワード認証画面（ライトモード） -->
+    <div id="authScreen" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-xl">
+            <h2 class="text-lg font-bold text-slate-900 mb-2 text-center">アクセス認証</h2>
+            <p class="text-xs text-slate-500 mb-4 text-center">閲覧するにはパスワードを入力してください</p>
             <form onsubmit="checkPassword(event)" class="space-y-3">
-                <input type="password" id="passwordInput" placeholder="パスワードを入力" required class="w-full px-3 py-2 text-sm bg-[#1e1f22] border border-transparent focus:border-indigo-500 text-white rounded-xl focus:outline-none">
-                <p id="authError" class="text-xs text-rose-400 hidden text-center">パスワードが間違っています</p>
-                <button type="submit" id="authBtn" class="w-full bg-[#5865f2] hover:bg-[#4752c4] text-white py-2 rounded-xl text-sm font-medium transition">入室する</button>
+                <input type="password" id="passwordInput" placeholder="パスワードを入力" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 focus:border-blue-500 text-slate-800 rounded-xl focus:outline-none">
+                <p id="authError" class="text-xs text-rose-500 hidden text-center">パスワードが間違っています</p>
+                <button type="submit" id="authBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition">入室する</button>
             </form>
         </div>
     </div>
@@ -34,15 +34,15 @@
     <!-- メインコンテンツ（認証後に表示） -->
     <div id="mainContent" class="max-w-5xl w-full mx-auto px-4 py-8 hidden min-h-screen flex flex-col">
         <!-- ヘッダー -->
-        <header class="mb-8 flex justify-between items-center border-b border-[#3f4147] pb-4">
+        <header class="mb-8 flex justify-between items-center border-b border-slate-200 pb-4">
             <div>
-                <h1 class="text-xl font-bold text-white flex items-center gap-2">
-                    <span class="text-[#5865f2]">#</span> 共有事項ボード
+                <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <span class="text-blue-600">#</span> 共有事項ボード
                 </h1>
-                <p class="text-xs text-[#949ba4] mt-1">北大生協RG カテゴリ別情報共有</p>
+                <p class="text-xs text-slate-500 mt-1">北大生協RG カテゴリ別情報共有</p>
             </div>
             <!-- 新規投稿ボタン（Googleフォームへ遷移） -->
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSdws5l84JJlbujW1dVDxuACpUF7g2CjC3LtNEmOgAwUyO7JcA/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" class="bg-[#5865f2] hover:bg-[#4752c4] text-white px-4 py-2 rounded-xl text-xs font-medium shadow-sm transition inline-flex items-center gap-1.5">
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSdws5l84JJlbujW1dVDxuACpUF7g2CjC3LtNEmOgAwUyO7JcA/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium shadow-sm transition inline-flex items-center gap-1.5">
                 <span>+ 新規投稿</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -55,47 +55,47 @@
             <!-- JavaScriptで動的生成 -->
         </div>
 
-        <!-- 共有事項一覧（Discord Embed風カード表示） -->
+        <!-- 共有事項一覧（Discord Embed風カード表示 - ライトモード） -->
         <div id="noticeGrid" class="space-y-4">
-            <p class="text-center text-[#949ba4] py-12">データを読み込んでいます...</p>
+            <p class="text-center text-slate-400 py-12">データを読み込んでいます...</p>
         </div>
     </div>
 
     <!-- 詳細＆コメントモーダル -->
-    <div id="detailModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-[#313338] border border-[#3f4147] rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-[#dbdee1]">
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-800">
             <!-- モーダルヘッダー -->
-            <div class="p-6 border-b border-[#3f4147] flex justify-between items-start bg-[#2b2d31]">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50">
                 <div>
-                    <span id="modalCategory" class="text-[10px] font-bold px-2 py-0.5 rounded bg-[#5865f2]/20 text-[#5865f2] uppercase tracking-wider"></span>
-                    <h2 id="modalTitle" class="text-lg font-bold text-white mt-2"></h2>
-                    <p class="text-xs text-[#949ba4] mt-1"><span id="modalDate"></span> | 担当: <span id="modalAuthor" class="text-[#dbdee1] font-medium"></span></p>
+                    <span id="modalCategory" class="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 uppercase tracking-wider"></span>
+                    <h2 id="modalTitle" class="text-lg font-bold text-slate-900 mt-2"></h2>
+                    <p class="text-xs text-slate-400 mt-1"><span id="modalDate"></span> | 担当: <span id="modalAuthor" class="text-slate-700 font-medium"></span></p>
                 </div>
-                <button onclick="closeDetailModal()" class="text-[#949ba4] hover:text-white text-2xl font-bold px-2">&times;</button>
+                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold px-2">&times;</button>
             </div>
             <!-- モーダル本文 -->
             <div class="p-6 overflow-y-auto flex-1 space-y-6">
                 <div>
-                    <h4 class="text-[10px] font-bold text-[#949ba4] uppercase tracking-wider mb-2">詳細内容</h4>
-                    <p id="modalDetail" class="text-[#dbdee1] whitespace-pre-wrap text-sm leading-relaxed bg-[#2b2d31] p-4 rounded-xl border border-[#3f4147]"></p>
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">詳細内容</h4>
+                    <p id="modalDetail" class="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200"></p>
                 </div>
-                <div id="modalNoteContainer" class="hidden bg-[#f0b232]/10 text-[#f0b232] text-xs p-3 rounded-xl border border-[#f0b232]/20">
+                <div id="modalNoteContainer" class="hidden bg-amber-50 text-amber-800 text-xs p-3 rounded-xl border border-amber-200">
                     <strong>補足・備考:</strong> <span id="modalNote"></span>
                 </div>
 
                 <!-- コメントセクション -->
-                <div class="border-t border-[#3f4147] pt-6">
-                    <h4 class="text-xs font-bold text-white mb-3">スレッドコメント (<span id="commentCount">0</span>)</h4>
+                <div class="border-t border-slate-100 pt-6">
+                    <h4 class="text-xs font-bold text-slate-800 mb-3">スレッドコメント (<span id="commentCount">0</span>)</h4>
                     <div id="commentList" class="space-y-3 mb-4">
                         <!-- コメント挿入領域 -->
                     </div>
 
                     <!-- コメント入力フォーム -->
-                    <form onsubmit="submitComment(event)" class="space-y-2 bg-[#2b2d31] p-3 rounded-xl border border-[#3f4147]">
-                        <input type="text" id="commentAuthor" placeholder="お名前" required class="w-full text-xs px-3 py-2 bg-[#1e1f22] text-white border border-transparent focus:border-indigo-500 rounded-lg focus:outline-none">
+                    <form onsubmit="submitComment(event)" class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <input type="text" id="commentAuthor" placeholder="お名前" required class="w-full text-xs px-3 py-2 bg-white text-slate-800 border border-slate-200 focus:border-blue-500 rounded-lg focus:outline-none">
                         <div class="flex gap-2">
-                            <input type="text" id="commentText" placeholder="メッセージを送信..." required class="flex-1 text-xs px-3 py-2 bg-[#1e1f22] text-white border border-transparent focus:border-indigo-500 rounded-lg focus:outline-none">
-                            <button type="submit" id="commentSubmitBtn" class="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs px-4 py-2 rounded-lg font-medium transition">送信</button>
+                            <input type="text" id="commentText" placeholder="メッセージを送信..." required class="flex-1 text-xs px-3 py-2 bg-white text-slate-800 border border-slate-200 focus:border-blue-500 rounded-lg focus:outline-none">
+                            <button type="submit" id="commentSubmitBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-medium transition">送信</button>
                         </div>
                     </form>
                 </div>
@@ -111,6 +111,17 @@
         let commentsData = [];
         let currentCategory = "すべて";
         let activeNoticeId = null;
+
+        // カテゴリに応じたEmbedのアクセントカラーを返す関数
+        function getCategoryColor(category) {
+            if (!category) return '#3b82f6'; // デフォルト青
+            const cat = category.toLowerCase();
+            if (cat.includes('シフト') || cat.includes('勤務')) return '#10b981'; // エメラルド緑
+            if (cat.includes('イベント') || cat.includes('行事') || cat.includes('予定')) return '#f59e0b'; // アンバー黄
+            if (cat.includes('連絡') || cat.includes('重要') || cat.includes('緊急')) return '#ef4444'; // ローズ赤
+            if (cat.includes('業務') || cat.includes('マニュアル')) return '#8b5cf6'; // パープル
+            return '#3b82f6'; // デフォルト青
+        }
 
         function checkPassword(e) {
             e.preventDefault();
@@ -189,7 +200,7 @@
             
             container.innerHTML = categories.map(cat => `
                 <button onclick="selectCategory('${escapeHtml(cat)}')" 
-                        class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${currentCategory === cat ? 'bg-[#5865f2] text-white shadow-sm' : 'bg-[#2b2d31] text-[#949ba4] hover:bg-[#35373c] hover:text-white'}">
+                        class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${currentCategory === cat ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}">
                     ${escapeHtml(cat)}
                 </button>
             `).join('');
@@ -208,29 +219,30 @@
                 : noticesData.filter(n => n.category === currentCategory);
 
             if (filtered.length === 0) {
-                grid.innerHTML = `<p class="text-center text-[#949ba4] py-12">該当する共有事項はありません。</p>`;
+                grid.innerHTML = `<p class="text-center text-slate-400 py-12">該当する共有事項はありません。</p>`;
                 return;
             }
 
-            // Discord Embed風デザインのカード描画
+            // カテゴリ別Embedカラーに対応したカード描画
             grid.innerHTML = filtered.map(n => {
                 const noticeComments = commentsData.filter(c => c.targetId === n.id);
+                const accentColor = getCategoryColor(n.category);
                 return `
-                    <div onclick="openDetailModal('${n.id}')" class="bg-[#2b2d31] border border-[#1e1f22] rounded-xl p-4 hover:bg-[#35373c]/60 transition cursor-pointer flex gap-3 relative overflow-hidden shadow-sm">
-                        <!-- Discord Embed風の左側アクセントカラーバー -->
-                        <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-[#5865f2]"></div>
+                    <div onclick="openDetailModal('${n.id}')" class="bg-white border border-slate-200/80 rounded-xl p-4 hover:border-slate-300 hover:shadow-md transition cursor-pointer flex gap-3 relative overflow-hidden shadow-xs">
+                        <!-- Discord Embed風の左側アクセントカラーバー（カテゴリ別に色が変わる） -->
+                        <div class="absolute left-0 top-0 bottom-0 w-1.5" style="background-color: ${accentColor};"></div>
                         
                         <div class="flex-1 pl-2">
                             <div class="flex justify-between items-center mb-1.5">
-                                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-[#5865f2]/20 text-[#5865f2]">${escapeHtml(n.category)}</span>
-                                <span class="text-[10px] text-[#949ba4]">${escapeHtml(n.date ? String(n.date).split('T')[0] : '')}</span>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded" style="background-color: ${accentColor}15; color: ${accentColor};">${escapeHtml(n.category)}</span>
+                                <span class="text-[10px] text-slate-400">${escapeHtml(n.date ? String(n.date).split('T')[0] : '')}</span>
                             </div>
-                            <h3 class="font-bold text-white text-sm mb-1 line-clamp-1">${escapeHtml(n.title)}</h3>
-                            <p class="text-[#949ba4] text-xs line-clamp-2 leading-relaxed mb-3">${escapeHtml(n.detail)}</p>
+                            <h3 class="font-bold text-slate-900 text-sm mb-1 line-clamp-1">${escapeHtml(n.title)}</h3>
+                            <p class="text-slate-600 text-xs line-clamp-2 leading-relaxed mb-3">${escapeHtml(n.detail)}</p>
                             
-                            <div class="flex justify-between items-center text-[11px] text-[#949ba4] pt-2 border-t border-[#3f4147]/50">
-                                <span>担当: <strong class="text-[#dbdee1]">${escapeHtml(n.author)}</strong></span>
-                                <span class="flex items-center gap-1 text-[#5865f2] font-medium">💬 コメント (${noticeComments.length})</span>
+                            <div class="flex justify-between items-center text-[11px] text-slate-400 pt-2 border-t border-slate-100">
+                                <span>担当: <strong class="text-slate-700">${escapeHtml(n.author)}</strong></span>
+                                <span class="flex items-center gap-1 font-medium" style="color: ${accentColor};">💬 コメント (${noticeComments.length})</span>
                             </div>
                         </div>
                     </div>
@@ -272,17 +284,17 @@
             document.getElementById('commentCount').textContent = targetComments.length;
 
             if (targetComments.length === 0) {
-                list.innerHTML = `<p class="text-xs text-[#949ba4] text-center py-3">コメントはまだありません。</p>`;
+                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">コメントはまだありません。</p>`;
                 return;
             }
 
             list.innerHTML = targetComments.map(c => `
-                <div class="bg-[#1e1f22] p-3 rounded-xl text-xs space-y-1 border border-[#3f4147]/30">
-                    <div class="flex justify-between items-center font-semibold text-white">
+                <div class="bg-slate-50 p-3 rounded-xl text-xs space-y-1 border border-slate-200">
+                    <div class="flex justify-between items-center font-semibold text-slate-800">
                         <span>${escapeHtml(c.author)}</span>
-                        <span class="text-[10px] text-[#949ba4]">${escapeHtml(c.timestamp ? new Date(c.timestamp).toLocaleString('ja-JP') : '')}</span>
+                        <span class="text-[10px] text-slate-400">${escapeHtml(c.timestamp ? new Date(c.timestamp).toLocaleString('ja-JP') : '')}</span>
                     </div>
-                    <p class="text-[#dbdee1] whitespace-pre-wrap">${escapeHtml(c.comment)}</p>
+                    <p class="text-slate-600 whitespace-pre-wrap">${escapeHtml(c.comment)}</p>
                 </div>
             `).join('');
         }
